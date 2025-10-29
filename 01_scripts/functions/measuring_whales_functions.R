@@ -34,12 +34,9 @@ getMorphoMetrix  <- function(ROOTfolderpath){
    #make empty data table to populate
    #empty flightlog
    morpho.output <- data.frame(imagePath = character(), 
-                               videoFile = character(),
-                               timeStamp = numeric(),
-                               altitude = numeric(),
-                               pixelDimension = numeric(),
-                               object = character(),
-                               length = numeric(),
+                               pixelDimension = character(),
+                               totalLength_px = character(),
+                               headFinLength_px = character(),
                                notes = character()
                                )
    
@@ -52,57 +49,75 @@ getMorphoMetrix  <- function(ROOTfolderpath){
      
      #read in each file
      
-     a <- t(read.csv(tmp.files[i], header = F))
-     tmp.table <- data.frame(imagePath = a[2,2], 
-                             videoFile =  paste(gsub('\\..*', "",basename(a[2,2])), ".MP4", sep = ""),
-                             timeStamp = gsub("_",":",substr(basename(a[2,2]), 17, 21)),
-                             altitude = as.numeric(a[2,4]),
-                             pixelDimension = a[2,5],
-                             length = as.numeric(a[2,9]),
-                             notes = a[2,6]
-     )
+     tmp.table <- read.csv(tmp.files[i], header = T) %>% 
+       as_tibble() %>% 
+       filter(Object %in% c("Image Path","Pixel Dimension","Notes","TL","HF"),
+              Value_unit != "Meters") %>% 
+       select(-Value_unit) %>% 
+       mutate(Object = case_when(Object == "Image Path" ~ "imagePath",
+                                 Object == "Pixel Dimension" ~ "pixelDimension",
+                                 Object == "Notes" ~ "notes",
+                                 Object == "TL" ~ "totalLength_px",
+                                 Object == "HF" ~ "headFinLength_px",
+                                 T~Object
+       )) %>% 
+       pivot_wider(names_from = Object, values_from = Value)
    
-     morpho.output <- rbind(morpho.output, tmp.table)
+     morpho.output <- bind_rows(morpho.output, tmp.table)
 
    }
+   
+   morpho.output <- morpho.output %>% 
+     mutate(pixelDimension = as.numeric(pixelDimension),
+            totalLength_px = as.numeric(totalLength_px),
+            headFinLength_px = as.numeric(headFinLength_px)
+     )
    return(morpho.output)
    
 }
 
 # 2. getSRTAltitude -----
-getSrtAltitude <- function(data){
-  #read in all flight srt data
+getSrtAltitude <- function(data,FlightLogPath){
+  
   require(stringr)
-  drone_srt_files <- read.csv("Data/Drone_Logs/Gal2023_Drone_Flight_Logs_srt.csv", header = T)
   
-  #make matching file name
-  drone_srt_files <- drone_srt_files %>%
-    mutate(mp4_file = basename(videoFile))
+  #read in all flight srt data
+  drone_srt_files <- read.csv(FlightLogPath, header = T)
   
-  #obtain snapshot file type: 
   data <- data %>% 
-    mutate(  # identify vlc and other file snapshot types
-      type = ifelse(str_detect(imageName, "vlc"), "vlc", "boris"),
-      mp4_file = paste0(substr(imageName, 1, 32), ".MP4"),
-      ss_sec = ifelse(type=="vlc", # round down
-                      yes = as.numeric(substr(imageName, 41, 42)) *60 + as.numeric(substr(imageName, 44,45)), 
-                      no = str_extract(imageName, "_([0-9\\.]+)(ns)?\\.png$") %>%
-                        str_remove_all("_|ns|\\.png")%>%
-                        as.numeric()
-      )%>%
-        floor()
-    )
-  
-  #join based on file name and time in video
-  
-  
-  
-  # Join data with drone_srt_log to get altitude based on mp4_file & time match
-  data <- data %>%
-    left_join(drone_srt_files, 
-              by = c("mp4_file" = "mp4_file", "ss_sec" = "videoTime")) %>%
-    select(imageName, ind, video.whale.ID, date, altitude.raw, droneAltitude, ind, TL.px, HF.px, HD.px, image_width = imageWidth, notes, mp4_file, ss_sec
-    )
+    
+    mutate(imageName = basename(imagePath),
+           videoFile = paste0(substr(imageName, 1, 32), ".MP4"),
+           
+           # identify vlc and other file snapshot types
+           imageType = ifelse(str_detect(imageName, "vlc"), "vlc", "boris"), 
+           
+           # extract time of frame (in seconds, relative to start of video)
+           ss_sec = ifelse(imageType=="vlc",
+                           yes = as.numeric(substr(imageName, 41, 42)) *60 + as.numeric(substr(imageName, 44,45)), 
+                           
+                           no = str_extract(imageName, "_([0-9\\.]+)(ns)?\\.png$") %>%
+                             str_remove_all("_|ns|\\.png")%>%
+                             as.numeric())%>%
+             floor(),  # round down to nearest second
+           
+           # extract datetime from video file name
+           dateTime_videoStart = str_replace(videoFile, "Gal2023_DJIMini2_", "") %>% 
+             str_replace(".MP4", "") %>% ymd_hms(),
+           
+           dateTime_stillImage = dateTime_videoStart + ss_sec) %>% 
+    
+    # Join data with drone flight log to get altitude based on mp4_file & time match
+    left_join(drone_srt_files %>% select(datetime_utc6,OSD.height..m.,GIMBAL.pitch) %>% 
+                mutate(datetime_utc6 = ymd_hms(datetime_utc6)) %>% 
+                group_by(datetime_utc6) %>% 
+                summarise(mean_OSD_height_m = mean(OSD.height..m.),
+                          mean_GIMBAL.pitch = mean(GIMBAL.pitch)) %>% 
+                ungroup(), 
+              by = c("dateTime_stillImage" = "datetime_utc6"),
+              
+              # allow many-to-one b/c some still images have multiple rows for multiple measured whales
+              relationship = "many-to-one")
   
   # View result
   return(data)

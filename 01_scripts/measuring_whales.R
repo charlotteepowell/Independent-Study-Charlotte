@@ -1,30 +1,48 @@
-# Measure and graph whales:
-source("R/functions.R")
 
-#1. read in morphometrix data -----
-ROOTfolderpath <- "D:/Gal2023_Drone/Galapagos2023_Drone_Snapshots/SpermWhale_AgeSex_Snapshots"
+
+# Measure and graph whales
+
+# Written by Ana Eguiguren
+
+# Modified by Christine Clarke
+
+# Purpose: use .csv files exported from 'morphometrix' software to calculate and compile measurements of whales from aerial images that were annotated in morphometrix
+
+
+# Read source file ---------------------------------------------------------
+
+source("01_scripts/functions/measuring_whales_functions.R")
+
+# Read in and compile morphometrix data -------------------------------------------------
+
+# set path to files (on Whitehead Lab NAS - a copy of Ana's data)
+
+ROOTfolderpath <- "W:/Galapagos/01_PROCESSED DATA/Drone/2023/Snapshots"
+
+# run function (written by Ana Eguiguren) to compile and process data
 
 morpho.output <- getMorphoMetrix(ROOTfolderpath)
 
-#write.csv(morpho.output, "Output_Data/morpho.output.batch2.csv")
-#morpho.output <-read.csv("Output_Data/morpho.output.batch2.csv", header = T)
+# Save compiled morphometrix data -------------------------------------------------
 
-#morpho.output <- read.csv("Output_Data/morpho.output.csv", header = T)
+write.csv(morpho.output, "02_outdata/morpho-output_AEguiguren_GAL2023_2025-10-28.csv", row.names = F)
 
-morpho.output<-morpho.output%>% mutate(
-  video.file = substr(imageName, 1, 32)
-)
+# Read compiled morphometrix data -------------------------------------------------
 
-morpho.output <- morpho.output %>% mutate(
-  video.whale.ID =paste(video.file, ind, sep = "_"),
-  date = substr(video.whale.ID, 18,25)
-)
+morpho.output <- read.csv("02_outdata/morpho-output_AEguiguren_GAL2023_2025-10-28.csv", header = T)
 
-# ~~~~a. get correct altitude data from srt fiiles ----
-morpho.output <- getSrtAltitude(morpho.output)
+# Get altitude and gimble data from flight log files -------------------------------------------------
 
+# run function to get altitude from flight logs (joins based on time from file name)
+
+FlightLogPath = "00_rawdata/Gal2023_FlightReader_Flight_logs.csv"  # file provided by Ana Eguiguren (>100 MB so 'git ignored')
+
+morpho.output <- getSrtAltitude(data = morpho.output, FlightLogPath = FlightLogPath)
 
 
+# Get length estimates -------------------------------------------------
+
+# ** not yet worked through **
 
 # ~~~~b. get length estimates-----
 morpho.output<- morpho.output %>% mutate(
