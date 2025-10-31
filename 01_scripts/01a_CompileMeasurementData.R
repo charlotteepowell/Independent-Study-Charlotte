@@ -78,7 +78,7 @@ for(i in c(237:nrow(morpho.output.2))){
   
   if(is.na(morpho.output.2$updatedPath[i])==F){
     
-    #skip corrupt file
+    #skip corrupt files
     if(!(morpho.output.2$updatedPath[i] %in% c( 
        "W:/Galapagos/01_PROCESSED DATA/Drone/2023/Snapshots/20230323/Gal2023_DJIMini2_20230323_091201/Gal2023_DJIMini2_20230323_091201_255.922.png",
        "W:/Galapagos/01_PROCESSED DATA/Drone/2023/Snapshots/20230323/Gal2023_DJIMini2_20230323_091201/Gal2023_DJIMini2_20230323_091201_262.596.png",
@@ -120,8 +120,26 @@ write.csv(morpho.output.2, "02_outdata/morpho-output_All_withSex.csv", row.names
 
 morpho.output.2 = read.csv("02_outdata/morpho-output_All_withSex.csv")
 
-ggplot(morpho.output.2)+geom_point(aes(totalLength_m,ratio.HF, col = assumedClass))
-ggplot(morpho.output.2)+geom_histogram(aes(totalLength_m, fill = assumedClass))+facet_wrap(~assumedClass,ncol=1, scales = "free_y")
-morpho.output.2 %>% count(imageWidth)
+
+# Quality Control -----------------------------------------------------------
+
+# compare to Ana's data
+
+cleanMeasurements_byID_AE = read.csv("00_rawdata/id_unpooled_clean_processed.csv")
+rawMeasurments_CC = read.csv("02_outdata/morpho-output_All_withSex.csv")
+
+test = left_join(cleanMeasurements_byID_AE,rawMeasurments_CC, by = c("imageName","notes","TL.px"="totalLength_px"))
+
+test %>% ggplot()+geom_point(aes(image_width,imageWidth))  # same image widths
+test %>% ggplot()+geom_point(aes(altitude.c,altitude_ASL)) # variation in altitude (maybe b/c I took the average for each second?)
+test %>% ggplot()+geom_point(aes(TL.m,totalLength_m))      # so some variation in measurements in m
+test %>% ggplot()+geom_histogram(aes(TL.m-totalLength_m))  # basically with +/-1m   
+test %>% ggplot()+geom_point(aes(ratio.HF.x,ratio.HF.y))   # but not in ratios    
+
+
+# some long lengths for 'females' - maybe measurement error?
+ggplot(rawMeasurments_CC)+geom_point(aes(totalLength_m,ratio.HF, col = assumedClass))
+ggplot(rawMeasurments_CC)+geom_histogram(aes(totalLength_m, fill = assumedClass))+facet_wrap(~assumedClass,ncol=1, scales = "free_y")
+
 
 
