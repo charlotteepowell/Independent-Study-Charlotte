@@ -1,12 +1,14 @@
+#############################################################################################
 
-
-# Measure and graph whales
+# Calculate whale measurements based on Morphometrix outputs
 
 # Written by Ana Eguiguren
 
 # Modified by Christine Clarke
 
-# Purpose: use .csv files exported from 'morphometrix' software to calculate and compile measurements of whales from aerial images that were annotated in morphometrix
+# Purpose: 
+# use .csv files exported from 'morphometrix' software to calculate and compile measurements of whales from aerial images that were annotated in morphometrix. 
+# also applies correction (from Eguiguren et al. 2025) to altitudes from drone flight logs.
 
 
 # Read source file and additional packages ---------------------------------------------------------
