@@ -10,6 +10,7 @@ library(tidyr)
 library(dplyr)
 library(ggplot2)
 library(stringr)
+library(lubridate)
 
 # Load Data -----------------------------------------------------------
 
@@ -47,8 +48,26 @@ measurementsByID = imageData_withID_AE %>%
 
 ## Combine different analysts' sloughing data ----------------------------
 
+# suggestion function: 
+
+rbind()
+
+## Extract date and time from file name ----------------------------------
+
+# suggested functions (you need to add data files and integrate into workflow):
+
+substr() # to extract just the date and time (e.g. "20230201_082347") from file names using the standardized position in the string
+
+ymd_hms(,tz = "UTC")  # reformats test string as date
+
+yday()  # converts date to julian day
 
 ## Join final IDs (e.g. GAL2023_001) sloughing data ----------------------------
+
+#suggested functions:
+  
+select()      # to only keep the columns you need
+left_join()   # to join based on a shared variable
 
 
 ## Join sex-class and size info to sloughing data ----------------------------
